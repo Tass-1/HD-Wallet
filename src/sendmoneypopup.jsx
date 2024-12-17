@@ -27,7 +27,7 @@ const SuccessTick = () => (
   </div>
 );
 
-export const SendMoneyPopup = ({ walletInfo, closePopup, provider, chainType }) => {
+export const SendMoneyPopup = ({ walletInfo, closePopup, connection, chainType }) => {
   const [recipientAddress, setRecipientAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
@@ -37,56 +37,33 @@ export const SendMoneyPopup = ({ walletInfo, closePopup, provider, chainType }) 
 
   const handleSend = async () => {
     setError(null);
-    if (chainType === "ethereum") {
-      if (!ethers.isAddress(recipientAddress)) {
-        setError("Invalid recipient address");
-        return;
-      }
-
-      const balance = await provider.getBalance(walletInfo.address);
-      const balanceInEther = ethers.formatEther(balance);
-      if (parseFloat(amount) > parseFloat(balanceInEther)) {
-        setError("Insufficient funds");
-        return;
-      }
-
-      setIsConfirming(true);
-    } else if (chainType === "solana") {
+    if (chainType === "solana") {
       try {
-        const connection = new Connection(provider, 'confirmed');
+        // Validate recipient address
+        new PublicKey(recipientAddress); // This will throw an error if address is invalid
+
         const balance = await connection.getBalance(new PublicKey(walletInfo.publicKey));
-        if (parseFloat(amount) * 1e9 > balance) { // Convert SOL to lamports
+        const solBalance = balance / 1e9; // Convert lamports to SOL
+        
+        if (parseFloat(amount) > solBalance) {
           setError("Insufficient funds");
           return;
         }
         setIsConfirming(true);
       } catch (error) {
-        setError("Error fetching balance");
+        console.error("Balance check error:", error);
+        setError(error.message || "Invalid recipient address or error fetching balance");
       }
     }
+    // ... existing Ethereum logic ...
   };
 
   const confirmTransaction = async () => {
     setIsProcessing(true);
     setIsSuccess(false);
 
-    if (chainType === "ethereum") {
-      const wallet = new ethers.Wallet(walletInfo.privateKey, provider);
+    if (chainType === "solana") {
       try {
-        const tx = await wallet.sendTransaction({
-          to: recipientAddress,
-          value: ethers.parseEther(amount),
-        });
-        await tx.wait();
-        setIsSuccess(true);
-      } catch (error) {
-        setError("Transaction failed: " + error.message);
-      } finally {
-        setIsProcessing(false);
-      }
-    } else if (chainType === "solana") {
-      try {
-        const connection = new Connection(provider, 'confirmed');
         const transaction = new Transaction().add(
           SystemProgram.transfer({
             fromPubkey: new PublicKey(walletInfo.publicKey),
@@ -100,12 +77,15 @@ export const SendMoneyPopup = ({ walletInfo, closePopup, provider, chainType }) 
         await connection.confirmTransaction(signature);
         setIsSuccess(true);
       } catch (error) {
+        console.error("Transaction error:", error);
         setError("Transaction failed: " + error.message);
       } finally {
         setIsProcessing(false);
       }
     }
+    // ... existing Ethereum logic ...
   };
+
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">

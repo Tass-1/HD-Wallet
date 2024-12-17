@@ -24,16 +24,24 @@ export const SolanaWallet = ({ mnemonic }) => {
 
   // Fetch balances for existing addresses
   useEffect(() => {
-    publicKeys.forEach(async (keyInfo) => {
-      try {
-        const balance = await connection.getBalance(new PublicKey(keyInfo.publicKey));
-        const solBalance = balance / 1e9; // Convert lamports to SOL
-        setBalances((prev) => ({ ...prev, [keyInfo.index]: solBalance.toFixed(4) }));
-      } catch (error) {
-        console.error("Error fetching balance:", error);
+    const fetchBalances = async () => {
+      const newBalances = {};
+      
+      for (const keyInfo of publicKeys) {
+        try {
+          const balance = await connection.getBalance(new PublicKey(keyInfo.publicKey));
+          const solBalance = balance / 1e9; // Convert lamports to SOL
+          newBalances[keyInfo.index] = solBalance.toFixed(4);
+        } catch (error) {
+          console.error("Error fetching balance:", error);
+        }
       }
-    });
-  }, [publicKeys]);
+      
+      setBalances(prev => ({ ...prev, ...newBalances }));
+    };
+  
+    fetchBalances();
+  }, [publicKeys, connection]);
 
   // Create wallets
   const handleCreateWallet = async () => {

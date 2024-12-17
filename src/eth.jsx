@@ -6,7 +6,7 @@ import { SendMoneyPopup } from "./sendmoneypopup";
 
 
 //-------------------------------------------------------
-const INFURA_PROJECT_ID = import.meta.env.VITE_INFURA_PROJECT_ID;
+const INFURA_PROJECT_ID = import.meta.env.VITE_ETH_RPC_URL;
 
 const provider = new ethers.JsonRpcProvider(INFURA_PROJECT_ID);
 
